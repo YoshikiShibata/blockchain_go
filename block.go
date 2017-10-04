@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"log"
-	"strconv"
 	"time"
 )
 
@@ -18,30 +17,23 @@ import (
 type Block struct {
 	// The current timestamp when the block is created
 	Timestamp int64
+
 	// The actual valuable information containing in the block
-	Data []byte
+	Transactions []*Transaction
+
 	// The hash of the previous block.
 	PrevBlockHash []byte
+
 	// The hash of this block.
-	Hash  []byte
+	Hash []byte
+
 	Nonce int
 }
 
-// SetHash take block fields, concatenate them and calculate a SHA-256 hash
-// on the concatenated combination.
-func (b *Block) SetHash() {
-	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	headers := bytes.Join(
-		[][]byte{b.PrevBlockHash, b.Data, timestamp}, []byte{})
-	hash := sha256.Sum256(headers)
-
-	b.Hash = hash[:]
-}
-
 // NewBlock constructs a Block and returns it.
-func NewBlock(data string, prevBlockHash []byte) *Block {
+func NewBlock(transactions []*Transaction, prevBlockHash []byte) *Block {
 	block := &Block{
-		time.Now().Unix(), []byte(data), prevBlockHash, []byte{}, 0}
+		time.Now().Unix(), transactions, prevBlockHash, []byte{}, 0}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
 
@@ -54,8 +46,8 @@ func NewBlock(data string, prevBlockHash []byte) *Block {
 // NewGenesisBlock creates a genesis block.
 // In any blockchain, there must be at least one block, and such block,
 // the first in the chain, is called genesis block.
-func NewGenesisBlock() *Block {
-	return NewBlock("Genesis Block", []byte{})
+func NewGenesisBlock(coinbase *Transaction) *Block {
+	return NewBlock([]*Transaction{coinbase}, []byte{})
 }
 
 // Serialize serializes a block into []byte.
@@ -80,4 +72,19 @@ func DeserializeBlock(d []byte) *Block {
 	}
 
 	return &block
+}
+
+// HashTransactions take hashes of each transaction, concatenate them,
+// and get a hash of the concatenated combination
+func (b *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range b.Transactions {
+		txHashes = append(txHashes, tx.ID)
+	}
+
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
 }
