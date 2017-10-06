@@ -201,7 +201,7 @@ func (bc *Blockchain) MineBlock(transactions []*Transaction) {
 
 	err := bc.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
-		lastHash = b.Get([]byte("1"))
+		lastHash = b.Get([]byte("l"))
 
 		return nil
 	})
@@ -219,7 +219,7 @@ func (bc *Blockchain) MineBlock(transactions []*Transaction) {
 			log.Panic(err)
 		}
 
-		err = b.Put([]byte("1"), newBlock.Hash)
+		err = b.Put([]byte("l"), newBlock.Hash)
 		if err != nil {
 			log.Panic(err)
 		}
