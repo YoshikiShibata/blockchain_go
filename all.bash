@@ -30,3 +30,21 @@ echo "Get the balance for Pedro ..."
 ./bc getbalance -address Pedro
 echo ""
 
+echo "Sending 2 amount of money from Pedro Helen"
+./bc send -from Pedro -to Helen -amount 2
+echo ""
+
+echo "Sending 2 amount of moeny from Ivan to Helen"
+./bc send -from Ivean -to Helen -amount 2
+
+echo "Sending 3 amount of moeney from Helen to Rachel"
+./bc send -from Helen to Rachel -amount 2
+
+./bc getbalance -address Ivan
+./bc getbalance -address Pedro
+./bc getbalance -address Helen
+./bc getbalance -address Rachel
+
+./bc send -from Pedro -to Ivan -amount 5
+./bc getbalance -address Pedro
+./bc getbalance -address Ivan
