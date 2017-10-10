@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 )
 
 const subsidy = 10
@@ -24,7 +27,6 @@ func (tx Transaction) IsCoinbase() bool {
 
 // Hash returns the hash of the Transaction
 func (tx *Transaction) Hash() []byte {
-	var encoded bytes.Buffer
 	var hash [32]byte
 
 	txCopy := *tx
@@ -110,7 +112,8 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 	acc, validOutputs := bc.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount {
-		log.Panic("ERROR: Not enough funds")
+		log.Print("ERROR: Not enough funds")
+		os.Exit(1)
 	}
 
 	// Build a list of inputs
@@ -137,4 +140,53 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 	bc.SignTransaction(&tx, wallet.PrivateKey)
 
 	return &tx
+}
+
+// Sign signs each input of a Transaction
+func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transaction) {
+	if tx.IsCoinbase() {
+		return
+	}
+
+	for _, vin := range tx.Vin {
+		if prevTXs[hex.EncodeToString(vin.Txid)].ID == nil {
+			log.Panic("Error: Previous transaction is not correct")
+		}
+	}
+
+	txCopy := tx.TrimmedCopy()
+
+	for inID, vin := range txCopy.Vin {
+		prevTx := prevTXs[hex.EncodeToString(vin.Txid)]
+		txCopy.Vin[inID].Signature = nil
+		txCopy.Vin[inID].PubKey = prevTx.Vout[vin.Vout].PubKeyHash
+		txCopy.ID = txCopy.Hash()
+		txCopy.Vin[inID].PubKey = nil
+
+		r, s, err := ecdsa.Sign(rand.Reader, &privKey, txCopy.ID)
+		if err != nil {
+			log.Panic(err)
+		}
+		signature := append(r.Bytes(), s.Bytes()...)
+
+		tx.Vin[inID].Signature = signature
+	}
+}
+
+// TrimmedCopy creates a trimmed copy of Transaction to be used in signing
+func (tx *Transaction) TrimmedCopy() Transaction {
+	var inputs []TXInput
+	var outputs []TXOutput
+
+	for _, vin := range tx.Vin {
+		inputs = append(inputs, TXInput{vin.Txid, vin.Vout, nil, nil})
+	}
+
+	for _, vout := range tx.Vout {
+		outputs = append(outputs, TXOutput{vout.Value, vout.PubKeyHash})
+	}
+
+	txCopy := Transaction{tx.ID, inputs, outputs}
+
+	return txCopy
 }

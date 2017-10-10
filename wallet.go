@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"log"
 
 	"golang.org/x/crypto/ripemd160"
 )
@@ -17,6 +18,7 @@ type Wallet struct {
 
 const version = byte(0x00)
 const addressChecksumLen = 4
+const walletFile = "wallet.dat"
 
 func NewWallet() *Wallet {
 	private, public := newKeyPair()
@@ -28,13 +30,16 @@ func NewWallet() *Wallet {
 func newKeyPair() (ecdsa.PrivateKey, []byte) {
 	curve := elliptic.P256()
 	private, err := ecdsa.GenerateKey(curve, rand.Reader)
+	if err != nil {
+		log.Panic(err)
+	}
 	pubKey := append(private.PublicKey.X.Bytes(),
 		private.PublicKey.Y.Bytes()...)
 
-	return *private, pubkey
+	return *private, pubKey
 }
 
-func (w Wallet) GetAddress() []bytes {
+func (w Wallet) GetAddress() []byte {
 	pubKeyHash := HashPubKey(w.PublicKey)
 
 	versionedPayload := append([]byte{version}, pubKeyHash...)
@@ -62,6 +67,9 @@ func HashPubKey(pubKey []byte) []byte {
 
 	RIPEMD160Hasher := ripemd160.New()
 	_, err := RIPEMD160Hasher.Write(publicSHA256[:])
+	if err != nil {
+		log.Panic(err)
+	}
 	publicRIPEMD160 := RIPEMD160Hasher.Sum(nil)
 
 	return publicRIPEMD160
