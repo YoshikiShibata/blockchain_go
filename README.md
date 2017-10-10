@@ -6,3 +6,4 @@ This is just my exercise based on the following articles:
 * [Part 2](https://jeiwan.cc/posts/building-blockchain-in-go-part-2/)
 * [Part 3](https://jeiwan.cc/posts/building-blockchain-in-go-part-3/)
 * [Part 4](https://jeiwan.cc/posts/building-blockchain-in-go-part-4/)
+* [Part 5](https://jeiwan.cc/posts/building-blockchain-in-go-part-5/)
