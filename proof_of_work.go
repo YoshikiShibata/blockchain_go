@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"runtime"
 )
 
 var maxNonce = math.MaxInt64
@@ -52,28 +53,66 @@ func (pow *ProofOfWork) prepareData(nonce int) []byte {
 	return data
 }
 
+type mineResult struct {
+	found bool
+	nonce int
+	hash  []byte
+}
+
 func (pow *ProofOfWork) Run() (int, []byte) {
-	var hashInt big.Int
-	var hash [32]byte
 	nonce := 0
 
 	fmt.Printf("Mining a new block")
 
-	for nonce < maxNonce {
+	noOfGoroutines := runtime.NumCPU() / 2
+	nonceRange := maxNonce / noOfGoroutines
+
+	done := make(chan struct{})
+	resultCh := make(chan mineResult)
+
+	for i := 0; i < noOfGoroutines; i++ {
+		go pow.mining(done, resultCh, nonce, nonce+nonceRange)
+		nonce += nonceRange
+	}
+
+	for result := range resultCh {
+		fmt.Printf("\r%x (%d)", result.hash, result.nonce)
+		if result.found {
+			close(done)
+			fmt.Print("\n\n")
+			return result.nonce, result.hash
+		}
+	}
+	panic("Impossible")
+}
+
+func (pow *ProofOfWork) mining(done chan struct{}, result chan mineResult,
+	nonce int, endOfNonce int) {
+	var hashInt big.Int
+	var hash [32]byte
+
+	for nonce < endOfNonce {
 		data := pow.prepareData(nonce)
 		hash = sha256.Sum256(data)
-		fmt.Printf("\r%x", hash)
 		hashInt.SetBytes(hash[:])
 
 		if hashInt.Cmp(pow.target) == -1 {
-			break
+			select {
+			case result <- mineResult{true, nonce, hash[:]}:
+				return
+			case <-done:
+				return
+			}
+			panic("Impossible")
 		} else {
+			select {
+			case result <- mineResult{false, nonce, hash[:]}:
+			case <-done:
+				return
+			}
 			nonce++
 		}
 	}
-	fmt.Print("\n\n")
-
-	return nonce, hash[:]
 }
 
 func (pow *ProofOfWork) Validate() bool {
