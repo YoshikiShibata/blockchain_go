@@ -76,7 +76,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	}
 
 	for result := range resultCh {
-		fmt.Printf("\r%x (%d)", result.hash, result.nonce)
+		fmt.Printf("\r%x", result.hash)
 		if result.found {
 			close(done)
 			fmt.Print("\n\n")
